@@ -3,7 +3,6 @@ import appError from "../errors/appError.js";
 import jwt from "jsonwebtoken";
 import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
-// import appError from "../errors/appError.js";
 
 async function authMiddleware(req,res,next){
     try {
