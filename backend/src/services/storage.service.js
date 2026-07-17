@@ -18,4 +18,9 @@ async function uploadImage(file,folder){
     return result;
 }
 
-export default uploadImage;
+async function imageDelete(fileId){
+    const result = await imageKitClient.files.delete(fileId);
+    return result;
+}
+
+export default {uploadImage,imageDelete};

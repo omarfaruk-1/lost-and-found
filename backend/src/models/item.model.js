@@ -20,10 +20,16 @@ const itemSchema = new mongoose.Schema({
         type:String,
         required:true
     },
-    images:{
-        type:[String],
-        required:true
-    },
+    images:[{
+        url:{
+            type:String,
+            required:true
+        },
+        fileId:{
+            type:String,
+            required: true
+        }
+    },{ _id: false }],
     location:{
         type:String,
         required:true
@@ -36,6 +42,11 @@ const itemSchema = new mongoose.Schema({
         type:mongoose.Schema.Types.ObjectId,
         ref:"users",
         required:true
+    },
+    contact:{
+        type:String,
+        required:[true,"Phone number is required"],
+        trim:true   
     },
     status:{
         type:String,
