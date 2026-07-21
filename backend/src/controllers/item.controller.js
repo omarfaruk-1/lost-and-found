@@ -8,17 +8,21 @@ async function items(req,res,next){
     try {
         const {itemName,category,type,description,location,date}=req.body;
         const files=req.files;  
-        if(!files || !itemName || !category || !type || !description || !location || !date) return next(new appError("Image is required",400));
-        const folder= type==="lost"? "lost": "found"
+        if(!itemName || !category || !type || !description || !location || !date) return next(new appError("All required fields must be provided",400));
+        if(!files || files.length===0) return next(new appError("At least one image is required",400));
+        const folder= type;
+        
         const result = await Promise.all(files.map((file)=>storageService.uploadImage(file.buffer.toString("base64"),folder)));
-        const imageUrl=result.map((urls)=>urls.url);
-
+        const images =result.map(image=>({
+            url:image.url,
+            fileId:image.fileId
+        }))
         const item = await itemModel.create({
             itemName,
             category,
             type,
             description,
-            images:imageUrl,
+            images,
             location,
             date,
             postedBy:req.user._id
@@ -56,7 +60,6 @@ async function getItems(req,res,next){
         const items= await itemModel.find(query).sort(sortOption).skip(skip).limit(limitNumber);
         
         const totalItems= await itemModel.countDocuments(query);
-        console.log("after");
         
         if(items.length===0) return res.status(200).json({
             message:"Items not found",
@@ -86,6 +89,7 @@ async function getItems(req,res,next){
 async function myItems(req,res,next){
     try {
         const {itemName,type}=req.query;
+
         const query={postedBy:req.user._id};
         if(itemName) query.itemName={$regex:itemName,$options:"i"};
         if(type) query.type=type;
@@ -132,11 +136,11 @@ async function updateItem(req,res,next){
         const item = await itemModel.findById(itemId);
         if(!item) return next(new appError("Item not found",404));
         
-        if(req.user._id.toString() !== item.postedBy.toString()) return next(new appError("You are not allow to update",403));
+        if(req.user._id.toString() !== item.postedBy.toString() && req.user.role!=="admin") return next(new appError("You are not allowed to update",403));
 
         allowedUpdate.forEach((field)=>{
             if(req.body[field]!==undefined){
-                item[field]=req.body[field]
+                item[field]=req.body[field];
             }
         })
 

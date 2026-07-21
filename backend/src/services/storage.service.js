@@ -2,7 +2,6 @@ import ImageKit from "@imagekit/nodejs";
 import appConfig from "../config/appConfig.js";
 
 
-
 const imageKitClient= new ImageKit({
      privateKey:appConfig.IMAGE_KIT_PRIVET_KEY,
      publicKey:appConfig.IMAGE_KIT_PUBLIC_KEY,
@@ -12,7 +11,7 @@ const imageKitClient= new ImageKit({
 async function uploadImage(file,folder){
     const result= await imageKitClient.files.upload({
         file,
-        fileName:"image "+Date.now(),
+        fileName: `${folder}-${Date.now()}-${file.originalname}`,
         folderName:"lost and found/"+folder
     });
     return result;

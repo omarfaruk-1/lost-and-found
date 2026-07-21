@@ -8,7 +8,9 @@ async function authMiddleware(req,res,next){
     try {
         const token=req.headers.authorization?.split(" ")[1];
         if(!token) return next(new appError("Unauthorized",403));
+
         const decoded = jwt.verify(token,appConfig.JWT_ACCESS_TOKEN);
+        
         const session=await sessionModel.findById(decoded.sessionId);
         if(!session||session.revoked) return next(new appError("Session expired",401));
 

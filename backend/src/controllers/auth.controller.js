@@ -69,9 +69,11 @@ async function register(req,res,next){
 async function login(req,res,next){
     try {
         const {email,password}=req.body;
-        if(!email || !password) return res.status(400).json({message:"Email and password are required"});
+
+        if(!email || !password) return next(new appError("Email and password are required",400));
         const user = await userModel.findOne({email}).select("+password");
         if(!user) return next(new appError("User not found",404));
+
         const isMatch= await bcrypt.compare(password,user.password);
         if(!isMatch) return next(new appError("Invalid password",403));
 
@@ -135,6 +137,7 @@ async function refreshToken(req,res,next){
     try {
         const refreshToken = req.cookies.refreshToken;
         if(!refreshToken) return next(new appError("refresh token not found",401));
+
         const decoded = jwt.verify(refreshToken,appConfig.JWT_REFRESH_TOKEN);
         const refreshTokenHash= crypto.createHash("sha256").update(refreshToken).digest("hex");
 
@@ -143,6 +146,7 @@ async function refreshToken(req,res,next){
             revoked:false
         })
         if(!session) return next(new appError("Session not found",401));
+
         const accessToken=jwt.sign(
             {userId:decoded.userId,role:decoded.role,sessionId:session._id},
             appConfig.JWT_ACCESS_TOKEN,
@@ -179,7 +183,9 @@ async function logOut(req,res,next){
     try {
         const refreshToken = req.cookies.refreshToken;
         if(!refreshToken) return next(new appError("Refresh token not found",401));
+
         const refreshTokenHash=crypto.createHash("sha256").update(refreshToken).digest("hex");
+
         const session=await sessionModel.findOne({
             refreshTokenHash,
             revoked:false
@@ -203,6 +209,7 @@ async function logOutAll(req,res,next){
     try {
         const refreshToken=req.cookies.refreshToken;
         if(!refreshToken) return next(new appError("Refresh token not found",401));
+
         const decoded = jwt.verify(refreshToken,appConfig.JWT_REFRESH_TOKEN);
         const session=await sessionModel.updateMany(
             {
@@ -222,6 +229,5 @@ async function logOutAll(req,res,next){
         next(error)
     }
 }
-
 
 export default {register,login,getMe,refreshToken,logOut,logOutAll};
