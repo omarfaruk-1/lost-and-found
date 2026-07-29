@@ -196,4 +196,4 @@ async function deleteItem(req,res,next){
 }
 
 
-export default {items,getItems,myItems,getItemById,updateItem,updateItem,deleteItem}
+export default {items,getItems,myItems,getItemById,updateItem,deleteItem}

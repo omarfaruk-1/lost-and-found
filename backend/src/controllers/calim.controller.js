@@ -1,4 +1,6 @@
 import claimModel from "../models/claim.model.js";
+import itemModel from "../models/item.model.js";
+import userModel from "../models/user.model.js";
 import mongoose from "mongoose";
 import storageService from "../services/storage.service.js";
 import appError from "../errors/appError.js";
@@ -10,10 +12,10 @@ async function createClaim(req, res, next) {
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(claimId)) {
       return next(new appError ("Invalid userId or claimId", 400));
     }
-    if (!claimId || !userId || !claimType || !description || !images) {
+    if (!claimId || !userId || !claimType || !description || !files || files.length === 0) {
       return next(new appError ("Missing required fields", 400));
     }
-    const claim = claimModel.findById(claimId);
+    const claim = await claimModel.findById(claimId);
     if (claim) {
       return next(new appError ("Already you claimed this item", 400));
     }
@@ -56,7 +58,7 @@ async function getAllClaim(req, res, next) {
     const limitNumber = Math.min(Number(limit) || 10, 30);
     const skip = (pageNumber - 1) * limitNumber;
 
-    const claims = await claimModel.find(query.populate("item").sort({ createdAt: -1 }).skip(skip).limit(limitNumber));
+    const claims = await claimModel.find(query).populate("item").sort({ createdAt: -1 }).skip(skip).limit(limitNumber);
 
     const totalClaims = await claimModel.countDocuments(query);
 
@@ -78,7 +80,7 @@ async function getClaimById(req, res, next) {
     if (!mongoose.isValidObjectId(claimId)) {
       return next(new appError("Invalid claimId", 400));
     }
-    const claim = await claimModel.findById(claimId).populate("items");
+    const claim = await claimModel.findById(claimId).populate("item");
     if (!claim) {
       return next(new appError("Claim not found", 404));
     }
@@ -196,4 +198,8 @@ async function updateClaimStatus(req, res, next) {
 
 export default {
   createClaim,
+  getAllClaim,
+  getClaimById,
+  myClaims,
+  updateClaimStatus,
 };
