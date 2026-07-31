@@ -4,6 +4,7 @@ import errorHandler from "./middlewares/error.middleware.js";
 import authRoute from "./routes/auth.route.js";
 import itemRoute from "./routes/item.route.js";
 import adminRoute from "./routes/admin.router.js";
+import claimRoute from "./routes/claim.route.js";
 
 const app  = express();
 
@@ -14,6 +15,8 @@ app.use(cookieParser());
 app.use("/api/users",authRoute)
 //Items routes
 app.use("/api/items",itemRoute)
+//claim routes
+app.use("/api/claim",claimRoute)
 //admin route
 app.use("/api/admin",adminRoute)
 
