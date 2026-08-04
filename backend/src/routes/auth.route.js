@@ -36,5 +36,10 @@ authRoute.post("/log-out",authController.logOut);
  */
 authRoute.post("/log-out-all",authController.logOutAll);
 
+/**
+ * ? email verification method get: http://localhost:5000/api/user/verify-email
+ */
+authRoute.get("/verify-email",authController.emailVerification);
+
 
 export default authRoute;

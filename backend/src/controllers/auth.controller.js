@@ -5,6 +5,7 @@ import crypto from "node:crypto"
 import appConfig from "../config/appConfig.js";
 import sessionModel from "../models/session.model.js";
 import appError from "../errors/appError.js";
+import sendVerificationEmail from "../services/mail.service.js";
 
 async function register(req,res,next){
     try {
@@ -24,41 +25,22 @@ async function register(req,res,next){
             password:hashPassword
         });
 
-        const refreshToken = jwt.sign(
-            {userId:user._id,role:user.role},
-            appConfig.JWT_REFRESH_TOKEN,
-            {expiresIn:"7d"}
-        );
-        const refreshTokenHash= crypto.createHash("sha256").update(refreshToken).digest("hex");
-        const session = await sessionModel.create({
-            user:user._id,
-            refreshTokenHash:refreshTokenHash,
-            ip:req.ip,
-            userAgent:req.headers["user-agent"] || "unknown"
-        });
 
-        const accessToken = jwt.sign(
-            {userId:user._id,role:user.role,sessionId:session._id},
-            appConfig.JWT_ACCESS_TOKEN,
-            {expiresIn:"15m"}
+        const emailToken= jwt.sign(
+            {userId:user._id},
+            appConfig.JWT_EMAIL_TOKEN,
+            {expiresIn:"20m"}
         );
-
-        res.cookie("refreshToken",refreshToken,{
-            httpOnly:true,
-            secure:true,
-            sameSite:"strict",
-            maxAge:7*24*60*60*1000
-        });
+        await sendVerificationEmail(email,emailToken);
 
         res.status(201).json({
-            message:"User registered successfully",
+            message:"User registered successfully. Please verify your email",
             user:{
                 username:user.username,
                 email:user.email,
                 role:user.role,
                 isVerified:user.isVerified
             },
-            accessToken:accessToken
         })
     } catch (error) {
         next(error)
@@ -66,16 +48,46 @@ async function register(req,res,next){
 
 }
 
+async function emailVerification(req,res,next){
+    try {
+        const {token}=req.query;
+        if(!token) return next(new appError("Token is required",400));
+        
+        const decoded=jwt.verify(token,appConfig.JWT_EMAIL_TOKEN);
+        const user=await userModel.findById(decoded.userId);
+        if(!user) return next(new appError("User not found",404));
+        if(user.isVerified) return next(new appError("Email already verified",400));
+        
+        user.isVerified=true;
+        await user.save();
+
+        res.status(200).json({
+            message:"Email verified successfully",
+            user:{  
+                username:user.username,
+                email:user.email,
+                role:user.role, 
+                isVerified:user.isVerified
+            }
+        })
+    } catch (error) {
+        next(error)
+    }
+}
+
 async function login(req,res,next){
     try {
         const {email,password}=req.body;
 
         if(!email || !password) return next(new appError("Email and password are required",400));
-        const user = await userModel.findOne({email}).select("+password");
+        
+        const user = await userModel.findOne({email}).select("+password +isVerified");
         if(!user) return next(new appError("User not found",404));
 
         const isMatch= await bcrypt.compare(password,user.password);
         if(!isMatch) return next(new appError("Invalid password",403));
+
+        if(!user.isVerified) return next(new appError("Please verify your email",403));
 
         const refreshToken = jwt.sign(
             {userId:user._id,role:user.role},
@@ -230,4 +242,4 @@ async function logOutAll(req,res,next){
     }
 }
 
-export default {register,login,getMe,refreshToken,logOut,logOutAll};
+export default {register,login,getMe,refreshToken,logOut,logOutAll,emailVerification};
