@@ -5,7 +5,8 @@ import crypto from "node:crypto"
 import appConfig from "../config/appConfig.js";
 import sessionModel from "../models/session.model.js";
 import appError from "../errors/appError.js";
-import sendVerificationEmail from "../services/mail.service.js";
+import sendMail from "../services/mail.service.js";
+import verificationTemplate from "../templates/verification.template.js";
 
 async function register(req,res,next){
     try {
@@ -31,7 +32,8 @@ async function register(req,res,next){
             appConfig.JWT_EMAIL_TOKEN,
             {expiresIn:"20m"}
         );
-        await sendVerificationEmail(email,emailToken);
+        const verificationLink = `${appConfig.FRONTEND_URL}/verify-email?token=${emailToken}`;
+        await sendMail(user.email,"Email verification",verificationTemplate(verificationLink));
 
         res.status(201).json({
             message:"User registered successfully. Please verify your email",

@@ -4,39 +4,55 @@ import userModel from "../models/user.model.js";
 import mongoose from "mongoose";
 import storageService from "../services/storage.service.js";
 import appError from "../errors/appError.js";
+import sendMail from "../services/mail.service.js";
+import claimApprovedTemplate from "../templates/claimApproved.template.js";
+import claimTemplate from "../templates/claim.template.js";
 
 async function createClaim(req, res, next) {
   try {
-    const { claimId, userId, claimType, description } = req.body;
+    const { itemId, claimType, description } = req.body;
     const files = req.files;
-    if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(claimId)) {
-      return next(new appError ("Invalid userId or claimId", 400));
+    if ( !mongoose.isValidObjectId(itemId)) {
+      return next(new appError ("Invalid itemId", 400));
     }
-    if (!claimId || !userId || !claimType || !description || !files || files.length === 0) {
+    if (!itemId || !claimType || !description || !files || files.length === 0) {
       return next(new appError ("Missing required fields", 400));
     }
-    const claim = await claimModel.findById(claimId);
-    if (claim) {
-      return next(new appError ("Already you claimed this item", 400));
+    const item = await itemModel.findById(itemId);
+    if (!item) {
+      return next(new appError ("Item not found", 400));
     }
+
+    const existingClaim =await claimModel.findOne({item:itemId,claimBy:req.use._id});
+    if(existingClaim) return next(new appError("Already you claimed this item",400));
+
     if (!["phone", "bag", "document", "wallet", "electronics", "jewelry", "others"].includes(claimType)) {
       return next(new appError("Invalid claimType", 400));
     }
 
     const result = await Promise.all(files.map((file)=>storageService.uploadImage(file.buffer.toString("base64"),"claim")));
-    const images = result.map((image)=>({url:result.url,fileId:result.fileId}));
+    const images = result.map((image)=>({url:image.url,fileId:image.fileId}));
 
-    const newClaim= await claimModel.create({
-        claimId,
+    const claim= await claimModel.create({
+        item:itemId,
         claimedBy:req.user._id,
         claimType,
         description,
         images,
     });
 
+    const owner = await userModel.findById(item.postedBy);
+    const claimant = await userModel.findById(req.user._id);
+
+    await sendEmail(
+      owner.email,
+      "New Claim Submitted",
+      claimTemplate(owner.username,claimant.username,item.itemName)
+    );
+
     res.status(201).json({
         message:"Claim created successfully",
-        data:newClaim
+        data:claim
     });
 
   } catch (error) {
@@ -76,11 +92,11 @@ async function getAllClaim(req, res, next) {
 
 async function getClaimById(req, res, next) {
   try {
-    const { claimId } = req.params;
-    if (!mongoose.isValidObjectId(claimId)) {
-      return next(new appError("Invalid claimId", 400));
+    const { itemId } = req.params;
+    if (!mongoose.isValidObjectId(itemId)) {
+      return next(new appError("Invalid itemId", 400));
     }
-    const claim = await claimModel.findById(claimId).populate("item");
+    const claim = await claimModel.findById(itemId).populate("item");
     if (!claim) {
       return next(new appError("Claim not found", 404));
     }
@@ -110,18 +126,18 @@ async function myClaims(req, res, next) {
 
 async function updateClaimStatus(req, res, next) {
   try {
-    const { claimId } = req.params;
+    const { itemId } = req.params;
     const { claimStatus, reviewReason } = req.body;
 
-    if (!mongoose.isValidObjectId(claimId)) {
-      return next(new appError("Invalid claimId", 400));
+    if (!mongoose.isValidObjectId(itemId)) {
+      return next(new appError("Invalid itemId", 400));
     }
 
     if (!["approved", "rejected"].includes(claimStatus)) {
       return next(new appError("Invalid claim status", 400));
     }
 
-    const claim = await claimModel.findById(claimId);
+    const claim = await claimModel.findById(itemId);
 
     if (!claim) {
       return next(new appError("Claim not found", 404));
@@ -137,13 +153,8 @@ async function updateClaimStatus(req, res, next) {
       return next(new appError("Item not found", 404));
     }
 
-    if (
-      item.postedBy.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
-      return next(
-        new appError("You are not authorized to update this claim", 403)
-      );
+    if (item.postedBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+      return next(new appError("You are not authorized to update this claim", 403));
     }
 
     if (claimStatus === "rejected" && !reviewReason?.trim()) {
@@ -183,6 +194,12 @@ async function updateClaimStatus(req, res, next) {
           },
         }
       );
+
+      const claimant = await userModel.find(claim.claimedBy);
+
+      await sendMail(user.req.email,"Claim Approved",claimApprovedTemplate(claimant.username,item.itemName))
+
+
     }
 
     res.status(200).json({
