@@ -8,7 +8,6 @@ dns.setServers(["1.1.1.2"]);
 connectDb();
 const PORT = appConfig.PORT ||  5000;
 
-
 app.listen(PORT,()=>{
     console.log(`Server running port: ${PORT}`)
 })

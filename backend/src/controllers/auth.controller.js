@@ -7,6 +7,7 @@ import sessionModel from "../models/session.model.js";
 import appError from "../errors/appError.js";
 import sendMail from "../services/mail.service.js";
 import verificationTemplate from "../templates/verification.template.js";
+import { generateToken } from "../utils/generateToken.js";
 
 async function register(req,res,next){
     try {
@@ -17,9 +18,10 @@ async function register(req,res,next){
         const userExist= await userModel.findOne({
             $or:[{username},{email}]
         });
-        if(userExist) return res.status(409).json({message:"Username or email already exist"});
+        if(userExist) return next(new appError("Username or email already exist",409))
         
         const hashPassword=await bcrypt.hash(password,10);
+
         const user = await userModel.create({
             username,
             email,
@@ -32,6 +34,7 @@ async function register(req,res,next){
             appConfig.JWT_EMAIL_TOKEN,
             {expiresIn:"20m"}
         );
+
         const verificationLink = `${appConfig.FRONTEND_URL}/verify-email?token=${emailToken}`;
         await sendMail(user.email,"Email verification",verificationTemplate(verificationLink));
 
@@ -64,7 +67,7 @@ async function emailVerification(req,res,next){
         await user.save();
 
         res.status(200).json({
-            message:"Email verified successfully",
+            message:"Email verified successfully. Please login with your email",
             user:{  
                 username:user.username,
                 email:user.email,
@@ -86,16 +89,13 @@ async function login(req,res,next){
         const user = await userModel.findOne({email}).select("+password +isVerified");
         if(!user) return next(new appError("User not found",404));
 
+        if(!user.isVerified) return next(new appError("Please verify your email",403));
+
         const isMatch= await bcrypt.compare(password,user.password);
         if(!isMatch) return next(new appError("Invalid password",403));
 
-        if(!user.isVerified) return next(new appError("Please verify your email",403));
+        const refreshToken = generateToken({userId:user._id,role:user.role},appConfig.JWT_REFRESH_TOKEN,"7d")
 
-        const refreshToken = jwt.sign(
-            {userId:user._id,role:user.role},
-            appConfig.JWT_REFRESH_TOKEN,
-            {expiresIn:"7d"}
-        );
         const refreshTokenHash= crypto.createHash("sha256").update(refreshToken).digest("hex");
 
         const session = await sessionModel.create({
@@ -104,11 +104,9 @@ async function login(req,res,next){
             ip:req.ip,
             userAgent: req.headers["user-agent"] || "Unknown",
         });
-        const accessToken = jwt.sign(
-            {userId:user._id,role:user.role,sessionId:session._id},
-            appConfig.JWT_ACCESS_TOKEN,
-            {expiresIn:"15m"}
-        );
+
+        const accessToken = generateToken({userId:user._id,role:user.role,sessionId:session._id},appConfig.JWT_ACCESS_TOKEN,"15m")
+
 
         res.cookie("refreshToken",refreshToken,{
             httpOnly:true,
@@ -161,17 +159,10 @@ async function refreshToken(req,res,next){
         })
         if(!session) return next(new appError("Session not found",401));
 
-        const accessToken=jwt.sign(
-            {userId:decoded.userId,role:decoded.role,sessionId:session._id},
-            appConfig.JWT_ACCESS_TOKEN,
-            {expiresIn:"15m"}
-        );
+        const accessToken = generateToken( {userId:decoded.userId,role:decoded.role,sessionId:session._id},appConfig.JWT_ACCESS_TOKEN,"15m")
 
-        const newRefreshToken=jwt.sign(
-            {userId:decoded.userId,role:decoded.role},
-            appConfig.JWT_REFRESH_TOKEN,
-            {expiresIn:"7d"}
-        );
+        const newRefreshToken = generateToken({userId:decoded.userId,role:decoded.role},appConfig.JWT_REFRESH_TOKEN,"7d")
+
         const newRefreshTokenHash=crypto.createHash("sha256").update(newRefreshToken).digest("hex");
         session.refreshTokenHash=newRefreshTokenHash;
         await session.save();
