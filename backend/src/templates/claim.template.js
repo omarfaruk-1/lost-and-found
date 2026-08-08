@@ -1,4 +1,4 @@
-function claimTemplate({ ownerName, claimantName, itemName }) {
+function claimTemplate( ownerName, claimantName, itemName ) {
   return `
     <h2>New Claim Submitted</h2>
 

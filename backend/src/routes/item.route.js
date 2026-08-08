@@ -8,7 +8,7 @@ const itemRoute = Router();
 /**
  * create lost and found method-post: localhost:5000/api/items
  */
-itemRoute.post("/",authMiddleware,uploadImageItem,itemController.items)
+itemRoute.post("/",authMiddleware,uploadImageItem,itemController.items) //done
 /**
  * get all lost and found items method-get: localhost:5000/api/items
  */

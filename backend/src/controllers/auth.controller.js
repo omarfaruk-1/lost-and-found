@@ -28,12 +28,7 @@ async function register(req,res,next){
             password:hashPassword
         });
 
-
-        const emailToken= jwt.sign(
-            {userId:user._id},
-            appConfig.JWT_EMAIL_TOKEN,
-            {expiresIn:"20m"}
-        );
+        const emailToken = generateToken({userId:user._id},appConfig.JWT_EMAIL_TOKEN,"20m")
 
         const verificationLink = `${appConfig.FRONTEND_URL}/verify-email?token=${emailToken}`;
         await sendMail(user.email,"Email verification",verificationTemplate(verificationLink));

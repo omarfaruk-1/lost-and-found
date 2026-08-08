@@ -4,13 +4,14 @@ import userModel from "../models/user.model.js";
 import mongoose from "mongoose";
 import storageService from "../services/storage.service.js";
 import appError from "../errors/appError.js";
-import sendMail from "../services/mail.service.js";
 import claimApprovedTemplate from "../templates/claimApproved.template.js";
 import claimTemplate from "../templates/claim.template.js";
+import sendMail from "../services/mail.service.js";
 
 async function createClaim(req, res, next) {
   try {
-    const { itemId, claimType, description } = req.body;
+    const {itemId}=req.params;
+    const {claimType, description } = req.body;
     const files = req.files;
     if ( !mongoose.isValidObjectId(itemId)) {
       return next(new appError ("Invalid itemId", 400));
@@ -23,7 +24,7 @@ async function createClaim(req, res, next) {
       return next(new appError ("Item not found", 400));
     }
 
-    const existingClaim =await claimModel.findOne({item:itemId,claimBy:req.use._id});
+    const existingClaim =await claimModel.findOne({item:itemId,claimedBy:req.user._id});
     if(existingClaim) return next(new appError("Already you claimed this item",400));
 
     if (!["phone", "bag", "document", "wallet", "electronics", "jewelry", "others"].includes(claimType)) {
@@ -42,13 +43,11 @@ async function createClaim(req, res, next) {
     });
 
     const owner = await userModel.findById(item.postedBy);
+    console.log(owner)
+    
     const claimant = await userModel.findById(req.user._id);
-
-    await sendEmail(
-      owner.email,
-      "New Claim Submitted",
-      claimTemplate(owner.username,claimant.username,item.itemName)
-    );
+    console.log(claim)
+    await sendMail(owner.email,"New Claim Submitted",claimTemplate(owner.username,claimant.username,item.itemName));
 
     res.status(201).json({
         message:"Claim created successfully",
@@ -112,8 +111,8 @@ async function getClaimById(req, res, next) {
 
 async function myClaims(req, res, next) {
   try {
-    const claims = await claimModel
-      .find({ claimedBy: req.user._id }).populate("item").sort({ createdAt: -1 });
+    console.log(req.user._id)
+    const claims = await claimModel.find({ claimedBy: req.user._id }).populate("item").sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "My claims retrieved successfully",
@@ -162,6 +161,7 @@ async function updateClaimStatus(req, res, next) {
     }
 
     claim.claimStatus = claimStatus;
+    if(claimStatus==="approved"){ item.status="resolved";}
 
     if (claimStatus === "rejected") {
       claim.reviewReason = reviewReason;
@@ -178,8 +178,8 @@ async function updateClaimStatus(req, res, next) {
         await user.save();
       }
     }
-
     await claim.save();
+    await item.save();
 
     if (claimStatus === "approved") {
       await claimModel.updateMany(
@@ -195,11 +195,8 @@ async function updateClaimStatus(req, res, next) {
         }
       );
 
-      const claimant = await userModel.find(claim.claimedBy);
-
-      await sendMail(user.req.email,"Claim Approved",claimApprovedTemplate(claimant.username,item.itemName))
-
-
+      const claimant = await userModel.findOne(claim.claimedBy);
+      await sendMail(req.user.email,"Claim Approved",claimApprovedTemplate(claimant.username,item.itemName))
     }
 
     res.status(200).json({

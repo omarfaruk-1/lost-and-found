@@ -6,9 +6,9 @@ import storageService from "../services/storage.service.js";
 
 async function items(req,res,next){
     try {
-        const {itemName,category,type,description,location,date}=req.body;
+        const {itemName,category,type,description,location,date,contact}=req.body;
         const files=req.files;  
-        if(!itemName || !category || !type || !description || !location || !date) return next(new appError("All required fields must be provided",400));
+        if(!itemName || !category || !type || !description || !location || !date || !contact) return next(new appError("All required fields must be provided",400));
         if(!files || files.length===0) return next(new appError("At least one image is required",400));
         const folder= type;
         
@@ -25,6 +25,7 @@ async function items(req,res,next){
             images,
             location,
             date,
+            contact,
             postedBy:req.user._id
         })
 
