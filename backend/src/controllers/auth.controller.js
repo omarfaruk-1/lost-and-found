@@ -29,12 +29,11 @@ async function register(req,res,next){
         });
 
         const emailToken = generateToken({userId:user._id},appConfig.JWT_EMAIL_TOKEN,"20m")
-
         const verificationLink = `${appConfig.FRONTEND_URL}/verify-email?token=${emailToken}`;
         await sendMail(user.email,"Email verification",verificationTemplate(verificationLink));
 
         res.status(201).json({
-            message:"User registered successfully. Please verify your email",
+            message:"User registered successfully. Please check your email and verify your email",
             user:{
                 username:user.username,
                 email:user.email,

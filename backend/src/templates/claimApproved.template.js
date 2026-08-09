@@ -1,4 +1,4 @@
-function claimApprovedTemplate({ claimantName, itemName }) {
+function claimApprovedTemplate( claimantName, itemName ) {
   return `
     <h2>Claim Approved</h2>
 

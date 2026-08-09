@@ -23,6 +23,7 @@ async function createClaim(req, res, next) {
     if (!item) {
       return next(new appError ("Item not found", 400));
     }
+    if(item.status==="resolved") return next(new appError("This item already resolved, so you can not claim this item"))
 
     const existingClaim =await claimModel.findOne({item:itemId,claimedBy:req.user._id});
     if(existingClaim) return next(new appError("Already you claimed this item",400));
@@ -196,7 +197,7 @@ async function updateClaimStatus(req, res, next) {
       );
 
       const claimant = await userModel.findOne(claim.claimedBy);
-      await sendMail(req.user.email,"Claim Approved",claimApprovedTemplate(claimant.username,item.itemName))
+      await sendMail(req.user.email,"Claim Approved",claimApprovedTemplate(claimant.username,item.itemName));
     }
 
     res.status(200).json({
@@ -207,7 +208,6 @@ async function updateClaimStatus(req, res, next) {
     next(error);
   }
 }
-
 
 
 export default {
