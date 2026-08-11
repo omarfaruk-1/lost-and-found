@@ -7,7 +7,7 @@ import userModel from "../models/user.model.js";
 async function authMiddleware(req,res,next){
     try {
         const token=req.headers.authorization?.split(" ")[1];
-        if(!token) return next(new appError("Unauthorized",403));
+        if(!token) return next(new appError("Unauthorized",401));
 
         const decoded = jwt.verify(token,appConfig.JWT_ACCESS_TOKEN);
         
@@ -16,12 +16,13 @@ async function authMiddleware(req,res,next){
 
         const user = await userModel.findById(decoded.userId);
         if(!user) return next(new appError("User not found",404));
+        if(user.isBlocked) return next(new appError("Your account has been blocked",403));
 
         req.user=user;
         next();
         
     } catch (error) {
-        if(error.message==="JsonWebTokenError" || error.message==="TokenExpiredError"){
+        if(error.name==="JsonWebTokenError" || error.name==="TokenExpiredError"){
             return next(new appError("Invalid or expired token",401))
         }
         next(error)

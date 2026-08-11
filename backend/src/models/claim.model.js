@@ -49,7 +49,7 @@ const claimSchema = new mongoose.Schema(
     },
     reviewReason: {
       type: String,
-      enum: ["verified", "insufficient_proof", "wrong_item", "false_claim"],
+      enum: ["verified", "insufficient_proof", "wrong_item", "false_claim", "another_claim_approved"],
     },
   },
   {

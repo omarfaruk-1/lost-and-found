@@ -84,6 +84,7 @@ async function login(req,res,next){
         if(!user) return next(new appError("User not found",404));
 
         if(!user.isVerified) return next(new appError("Please verify your email",403));
+        if(user.isBlocked) return next(new appError("Your account has been blocked",403));
 
         const isMatch= await bcrypt.compare(password,user.password);
         if(!isMatch) return next(new appError("Invalid password",403));
@@ -152,6 +153,11 @@ async function refreshToken(req,res,next){
             revoked:false
         })
         if(!session) return next(new appError("Session not found",401));
+
+        const user = await userModel.findById(decoded.userId);
+
+        if (!user) return next(new appError("User not found", 404));
+        if (user.isBlocked) return next(new appError("Your account has been blocked", 403));
 
         const accessToken = generateToken( {userId:decoded.userId,role:decoded.role,sessionId:session._id},appConfig.JWT_ACCESS_TOKEN,"15m")
 

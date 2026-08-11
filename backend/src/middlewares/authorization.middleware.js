@@ -1,6 +1,6 @@
 import appError from "../errors/appError.js";
 
-async function authorization(req,res,next){
+function authorization(req,res,next){
     try {
         if(req.user.role!=="admin") return next(new appError("You can not access",403));
         next();

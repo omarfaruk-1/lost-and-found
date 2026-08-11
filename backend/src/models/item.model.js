@@ -21,6 +21,7 @@ const itemSchema = new mongoose.Schema({
         required:true
     },
     images:[{
+        _id:false,
         url:{
             type:String,
             required:true
@@ -29,7 +30,7 @@ const itemSchema = new mongoose.Schema({
             type:String,
             required: true
         }
-    },{ _id: false }],
+    }],
     location:{
         type:String,
         required:true
