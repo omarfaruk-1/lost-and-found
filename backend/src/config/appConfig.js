@@ -11,7 +11,8 @@ const appConfig={
     MAIL_PORT:process.env.MAIL_PORT,
     MAIL_USER:process.env.MAIL_USER,
     FRONTEND_URL:process.env.FRONTEND_URL,
-    JWT_EMAIL_TOKEN:process.env.JWT_EMAIL_TOKEN
+    JWT_EMAIL_TOKEN:process.env.JWT_EMAIL_TOKEN,
+    JWT_REST_PASS:process.env.JWT_REST_PASS,
 }
 
 

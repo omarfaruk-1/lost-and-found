@@ -7,6 +7,7 @@ import sessionModel from "../models/session.model.js";
 import appError from "../errors/appError.js";
 import sendMail from "../services/mail.service.js";
 import verificationTemplate from "../templates/verification.template.js";
+import passwordResetTemplate from "../templates/passwordResetTemplate.js"
 import { generateToken } from "../utils/generateToken.js";
 
 async function register(req,res,next){
@@ -30,7 +31,7 @@ async function register(req,res,next){
 
         const emailToken = generateToken({userId:user._id},appConfig.JWT_EMAIL_TOKEN,"20m")
         const verificationLink = `${appConfig.FRONTEND_URL}/verify-email?token=${emailToken}`;
-        await sendMail(user.email,"Email verification",verificationTemplate(verificationLink));
+        await sendMail(user.email,"Please Verified Your Email for Login",verificationTemplate(verificationLink));
 
         res.status(201).json({
             message:"User registered successfully. Please check your email and verify your email",
@@ -47,28 +48,76 @@ async function register(req,res,next){
 
 }
 
-async function emailVerification(req,res,next){
+async function emailVerification(req, res, next) {
     try {
-        const {token}=req.query;
-        if(!token) return next(new appError("Token is required",400));
+        const { token } = req.query;
+        if (!token) return next(new appError("Token is required", 400));
         
-        const decoded=jwt.verify(token,appConfig.JWT_EMAIL_TOKEN);
-        const user=await userModel.findById(decoded.userId);
-        if(!user) return next(new appError("User not found",404));
-        if(user.isVerified) return next(new appError("Email already verified",400));
-        
-        user.isVerified=true;
+        const decoded = jwt.verify(
+            token,
+            appConfig.JWT_EMAIL_TOKEN
+        );
+
+        const user = await userModel.findById( decoded.userId);
+
+        if (!user) {
+            return next(new appError("User not found", 404));
+        }
+
+        if (user.isVerified) {
+            return res.status(200).json({
+                message:"Email already verified. Please login with your email",
+                user: {
+                    username: user.username,
+                    email: user.email,
+                    role: user.role,
+                    isVerified: user.isVerified,
+                },
+            });
+        }
+
+        user.isVerified = true;
         await user.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             message:"Email verified successfully. Please login with your email",
-            user:{  
+            user: {
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                isVerified: user.isVerified,
+            },
+        });
+
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function reSendVerification(req,res,next){
+    try {
+        const {email}=req.body;
+        const user = await userModel.findOne({email:email});
+        if(!user){
+            return next(new appError("User not found",404))
+        };
+
+        if (user.isVerified) return next(new appError("Email is already verified. Please login.", 400));
+
+        const emailToken = generateToken({userId:user._id},appConfig.JWT_EMAIL_TOKEN,"20m")
+        const verificationLink = `${appConfig.FRONTEND_URL}/verify-email?token=${emailToken}`;
+        await sendMail(user.email,"Please Verified Your Email for Login",verificationTemplate(verificationLink));
+
+        return res.status(200).json({
+            message:"Please Verified Your Email for Login",
+            user:{
                 username:user.username,
                 email:user.email,
-                role:user.role, 
+                role:user.role,
                 isVerified:user.isVerified
-            }
+            },
         })
+
     } catch (error) {
         next(error)
     }
@@ -120,6 +169,60 @@ async function login(req,res,next){
             },
             accessToken:accessToken
         })
+    } catch (error) {
+        next(error)
+    }
+}
+
+async function forgetPassword(req,res,next){
+    try {
+        const {email}=req.body;
+        if(!email) return next(new appError("Email is required for FORGET password",400))
+        const user= await userModel.findOne({email:email});
+        if(!user) return next( new appError("User not fount",404))
+        
+        if(!user.isVerified) return next( new appError("User not verified, please verify email",401));
+
+        const emailToken = generateToken({userId:user._id},appConfig.JWT_REST_PASS,"20m")
+        const resetPasswordLink = `${appConfig.FRONTEND_URL}/reset-password?token=${emailToken}`;
+        await sendMail(user.email,"Please Verified Your Email for Login",passwordResetTemplate(resetPasswordLink));
+
+        return res.status(200).json({
+            message:"Please Verified Your Email for Login",
+            user:{
+                username:user.username,
+                email:user.email,
+                role:user.role,
+                isVerified:user.isVerified
+            },
+        })
+
+    } catch (error) {
+        next(error)
+    }
+}
+async function resetPassword(req,res,next){
+    try {
+        const {token}=req.query;
+        const {password}=req.body;
+        if(!password) return next (new appError("Password is required",400))
+
+        if(!token) return next(new appError("Token is required",400))
+
+        const decoded =jwt.verify(token,appConfig.JWT_REST_PASS);
+
+        const user= await userModel.findById(decoded.userId).select("+password");
+        if(!user) return next( new appError("User not fount",404))
+        
+        if(!user.isVerified) return next( new appError("User not authorized",401));
+        const newPassword= await bcrypt.hash(password,10);
+        user.password=newPassword;
+        await user.save();
+
+        return res.status(200).json({
+            message: "Password reset successfully. Please login.",
+        });
+
     } catch (error) {
         next(error)
     }
@@ -235,4 +338,4 @@ async function logOutAll(req,res,next){
     }
 }
 
-export default {register,login,getMe,refreshToken,logOut,logOutAll,emailVerification};
+export default {register,login,getMe,refreshToken,logOut,logOutAll,emailVerification,reSendVerification,resetPassword,forgetPassword};

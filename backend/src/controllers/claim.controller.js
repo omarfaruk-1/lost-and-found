@@ -11,12 +11,12 @@ import sendMail from "../services/mail.service.js";
 async function createClaim(req, res, next) {
   try {
     const {itemId}=req.params;
-    const {claimType, description } = req.body;
+    const {category, description } = req.body;
     const files = req.files;
     if ( !mongoose.isValidObjectId(itemId)) {
       return next(new appError ("Invalid itemId", 400));
     }
-    if (!itemId || !claimType || !description || !files || files.length === 0) {
+    if (!itemId || !category || !description || !files || files.length === 0) {
       return next(new appError ("Missing required fields", 400));
     }
     const item = await itemModel.findById(itemId);
@@ -28,7 +28,7 @@ async function createClaim(req, res, next) {
     const existingClaim =await claimModel.findOne({item:itemId,claimedBy:req.user._id});
     if(existingClaim) return next(new appError("Already you claimed this item",400));
 
-    if (!["phone", "bag", "document", "wallet", "electronics", "jewelry", "others"].includes(claimType)) {
+    if (!["phone", "bag", "document", "wallet", "electronics", "jewelry", "others"].includes(category)) {
       return next(new appError("Invalid claimType", 400));
     }
 
@@ -38,16 +38,15 @@ async function createClaim(req, res, next) {
     const claim= await claimModel.create({
         item:itemId,
         claimedBy:req.user._id,
-        claimType,
+        category,
         description,
         images,
     });
 
     const owner = await userModel.findById(item.postedBy);
-    console.log(owner)
+    
     
     const claimant = await userModel.findById(req.user._id);
-    console.log(claim)
     await sendMail(owner.email,"New Claim Submitted",claimTemplate(owner.username,claimant.username,item.itemName));
 
     res.status(201).json({
@@ -74,7 +73,7 @@ async function getAllClaim(req, res, next) {
     const limitNumber = Math.min(Number(limit) || 10, 30);
     const skip = (pageNumber - 1) * limitNumber;
 
-    const claims = await claimModel.find(query).populate("item").sort({ createdAt: -1 }).skip(skip).limit(limitNumber);
+    const claims = await claimModel.find(query).populate("item").populate("claimedBy").sort({ createdAt: -1 }).skip(skip).limit(limitNumber);
 
     const totalClaims = await claimModel.countDocuments(query);
 
@@ -112,7 +111,6 @@ async function getClaimById(req, res, next) {
 
 async function myClaims(req, res, next) {
   try {
-    console.log(req.user._id)
     const claims = await claimModel.find({ claimedBy: req.user._id }).populate("item").sort({ createdAt: -1 });
 
     res.status(200).json({

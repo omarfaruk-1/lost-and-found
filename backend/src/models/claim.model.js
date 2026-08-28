@@ -14,6 +14,20 @@ const claimSchema = new mongoose.Schema(
       required: true,
     },
 
+    category: {
+      type: String,
+      enum: [
+        "phone",
+        "bag",
+        "document",
+        "wallet",
+        "electronics",
+        "jewelry",
+        "others",
+      ],
+      required: true,
+    },
+
     description: {
       type: String,
       required: true,
