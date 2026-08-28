@@ -46,7 +46,7 @@ async function getItems(req,res,next){
         if(itemName) query.itemName={$regex:itemName,$options:"i"};
         if(type) query.type=type;
         if(category) query.category=category;
-        if(location) query.location=location;
+        if(location) query.location={$regex:location,$options:"i"};
 
         let sortOption={createdAt:-1}
         if(sort==="latest") sortOption={createdAt:-1}

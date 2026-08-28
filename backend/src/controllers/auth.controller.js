@@ -134,6 +134,7 @@ async function login(req,res,next){
 
         if(!user.isVerified) return next(new appError("Please verify your email",403));
         if(user.isBlocked) return next(new appError("Your account has been blocked",403));
+        
 
         const isMatch= await bcrypt.compare(password,user.password);
         if(!isMatch) return next(new appError("Invalid password",403));

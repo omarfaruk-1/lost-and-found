@@ -23,13 +23,14 @@ async function createClaim(req, res, next) {
     if (!item) {
       return next(new appError ("Item not found", 400));
     }
+    if(category!==item.category) return next(new appError("Claim category does not match the item category",400))
     if(item.status==="resolved") return next(new appError("This item already resolved, so you can not claim this item",400))
 
     const existingClaim =await claimModel.findOne({item:itemId,claimedBy:req.user._id});
     if(existingClaim) return next(new appError("Already you claimed this item",400));
 
     if (!["phone", "bag", "document", "wallet", "electronics", "jewelry", "others"].includes(category)) {
-      return next(new appError("Invalid claimType", 400));
+      return next(new appError("Invalid category", 400));
     }
 
     const result = await Promise.all(files.map((file)=>storageService.uploadImage(file.buffer.toString("base64"),"claim")));
