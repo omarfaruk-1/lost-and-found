@@ -28,7 +28,12 @@ app.use("/api/claim",claimRoute)
 app.use("/api/admin",adminRoute)
 
 
-
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "FindBack API is running",
+  });
+});
 
 app.use(errorHandler)
 export default  app;
