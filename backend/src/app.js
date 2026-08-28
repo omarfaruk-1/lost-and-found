@@ -11,7 +11,7 @@ import cors from "cors";
 const app  = express();
 
 app.use(cors({
-  origin: "https://vercel.com/omar-faruk2/findback",
+  origin: "https://findback-sigma.vercel.app",
   credentials: true,
 }));
 
