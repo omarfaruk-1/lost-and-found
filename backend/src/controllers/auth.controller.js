@@ -135,7 +135,6 @@ async function login(req,res,next){
         if(!user.isVerified) return next(new appError("Please verify your email",403));
         if(user.isBlocked) return next(new appError("Your account has been blocked",403));
         
-
         const isMatch= await bcrypt.compare(password,user.password);
         if(!isMatch) return next(new appError("Invalid password",403));
 
@@ -151,7 +150,6 @@ async function login(req,res,next){
         });
 
         const accessToken = generateToken({userId:user._id,role:user.role,sessionId:session._id},appConfig.JWT_ACCESS_TOKEN,"15m")
-
 
         res.cookie("refreshToken",refreshToken,{
             httpOnly:true,
@@ -202,6 +200,7 @@ async function forgetPassword(req,res,next){
         next(error)
     }
 }
+
 async function resetPassword(req,res,next){
     try {
         const {token}=req.query;

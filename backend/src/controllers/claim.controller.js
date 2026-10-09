@@ -13,16 +13,14 @@ async function createClaim(req, res, next) {
     const {itemId}=req.params;
     const {category, description } = req.body;
     const files = req.files;
-    if ( !mongoose.isValidObjectId(itemId)) {
-      return next(new appError ("Invalid itemId", 400));
-    }
+    if ( !mongoose.isValidObjectId(itemId)) return next(new appError ("Invalid itemId", 400));
+    
     if (!itemId || !category || !description || !files || files.length === 0) {
       return next(new appError ("Missing required fields", 400));
     }
     const item = await itemModel.findById(itemId);
-    if (!item) {
-      return next(new appError ("Item not found", 400));
-    }
+    if (!item) return next(new appError ("Item not found", 400));
+
     if(category!==item.category) return next(new appError("Claim category does not match the item category",400))
     if(item.status==="resolved") return next(new appError("This item already resolved, so you can not claim this item",400))
 
@@ -45,7 +43,6 @@ async function createClaim(req, res, next) {
     });
 
     const owner = await userModel.findById(item.postedBy);
-    
     
     const claimant = await userModel.findById(req.user._id);
     await sendMail(owner.email,"New Claim Submitted",claimTemplate(owner.username,claimant.username,item.itemName));
@@ -128,29 +125,21 @@ async function updateClaimStatus(req, res, next) {
     const { itemId } = req.params;
     const { claimStatus, reviewReason } = req.body;
 
-    if (!mongoose.isValidObjectId(itemId)) {
-      return next(new appError("Invalid itemId", 400));
-    }
-
+    if (!mongoose.isValidObjectId(itemId)) return next(new appError("Invalid itemId", 400));
+    
     if (!["approved", "rejected"].includes(claimStatus)) {
       return next(new appError("Invalid claim status", 400));
     }
 
     const claim = await claimModel.findById(itemId);
 
-    if (!claim) {
-      return next(new appError("Claim not found", 404));
-    }
+    if (!claim)return next(new appError("Claim not found", 404));
 
-    if (claim.claimStatus !== "pending") {
-      return next(new appError("Claim has already been reviewed", 400));
-    }
+    if (claim.claimStatus !== "pending") return next(new appError("Claim has already been reviewed", 400));
 
     const item = await itemModel.findById(claim.item);
 
-    if (!item) {
-      return next(new appError("Item not found", 404));
-    }
+    if (!item) return next(new appError("Item not found", 404));
 
     if (item.postedBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
       return next(new appError("You are not authorized to update this claim", 403));
@@ -168,6 +157,7 @@ async function updateClaimStatus(req, res, next) {
       "wrong_item",
       "false_claim"
     ];
+
     if (claimStatus === "rejected") {
 
       if(!validReviewReasons.includes(reviewReason)) return next(new appError("Invalid review reason", 400));
@@ -216,7 +206,6 @@ async function updateClaimStatus(req, res, next) {
     next(error);
   }
 }
-
 
 export default {
   createClaim,
